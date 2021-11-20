@@ -118,10 +118,24 @@ void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
 void CursorPosCallback(GLFWwindow* window, double xpos, double ypos);
 void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 
-// COordenadas da camera
+// Coordenadas da camera
+float r;
+float x = 0;
+float y = 0;
+float z = 0;
+
 float cX = 1.0;
 float cY = 1.0;
 float cZ = 1.0;
+
+
+// PressedKeys;
+int wPressed = 0;
+int aPressed = 0;
+int sPressed = 0;
+int dPressed = 0;
+
+glm::vec4 camera_lookat_l = glm::vec4(1.0f,1.0f,1.0f,1.0f); // Ponto "c", centro da câmera
 
 // Definimos uma estrutura que armazenará dados necessários para renderizar
 // cada objeto da cena virtual.
@@ -165,7 +179,7 @@ bool g_MiddleMouseButtonPressed = false; // Análogo para botão do meio do mous
 // renderização.
 float g_CameraTheta = 0.0f; // Ângulo no plano ZX em relação ao eixo Z
 float g_CameraPhi = 0.0f;   // Ângulo em relação ao eixo Y
-float g_CameraDistance = 3.5f; // Distância da câmera para a origem
+float g_CameraDistance = 3.0f; // Distância da câmera para a origem
 
 float gX = 0.0f; // Ângulo no plano ZX em relação ao eixo Z
 float gY = 0.0f;   // Ângulo em relação ao eixo Y
@@ -329,19 +343,28 @@ int main(int argc, char* argv[])
         // variáveis g_CameraDistance, g_CameraPhi, e g_CameraTheta são
         // controladas pelo mouse do usuário. Veja as funções CursorPosCallback()
         // e ScrollCallback().
-        float r = g_CameraDistance;
-        float y = r*sin(g_CameraPhi);
-        float z = r*cos(g_CameraPhi)*cos(g_CameraTheta);
-        float x = r*cos(g_CameraPhi)*sin(g_CameraTheta);
+        r = g_CameraDistance;
+        y = r*sin(g_CameraPhi);
+        z = r*cos(g_CameraPhi)*cos(g_CameraTheta);
+        x = r*cos(g_CameraPhi)*sin(g_CameraTheta);
 
-        // Abaixo definimos as varáveis que efetivamente definem a câmera virtual.
-        // Veja slides 195-227 e 229-234 do documento Aula_08_Sistemas_de_Coordenadas.pdf.
+        camera_lookat_l = glm::vec4(x,-y,z,1.0f); 
+
+        glm::vec4 normalized = normalize(camera_lookat_l);
+        glm::vec4 distance = glm::vec4(cX,1.0f,cZ,0.0f); 
+        camera_lookat_l += distance;
+        // Loop para segurar teclas
+        if (wPressed){
+          cX += normalized.x * 0.1;
+          cZ += normalized.z * 0.1;
+        }
+        if (sPressed){
+          cX -= normalized.x * 0.1;
+          cZ -= normalized.z * 0.1;
+        }
+
         //
-  //      glm::vec4 camera_position_c  = glm::vec4(x,y,z,1.0f); // Ponto "c", centro da câmera
-   //     glm::vec4 camera_lookat_l    = glm::vec4(0.0f,0.0f,0.0f,1.0f); // Ponto "l", para onde a câmera (look-at) estará sempre olhando
-        glm::vec4 camera_lookat_l = glm::vec4(x,-y,z,1.0f); // Ponto "c", centro da câmera
         glm::vec4 camera_position_c  = glm::vec4(cX,cY,cZ,1.0f); // Ponto "l", para onde a câmera (look-at) estará sempre olhando
-
         glm::vec4 camera_view_vector = camera_lookat_l - camera_position_c; // Vetor "view", sentido para onde a câmera está virada
         glm::vec4 camera_up_vector   = glm::vec4(0.0f,1.0f,0.0f,0.0f); // Vetor "up" fixado para apontar para o "céu" (eito Y global)
 
@@ -355,7 +378,7 @@ int main(int argc, char* argv[])
         // Note que, no sistema de coordenadas da câmera, os planos near e far
         // estão no sentido negativo! Veja slides 176-204 do documento Aula_09_Projecoes.pdf.
         float nearplane = -0.1f;  // Posição do "near plane"
-        float farplane  = -10.0f; // Posição do "far plane"
+        float farplane  = -30.0f; // Posição do "far plane"
 
         if (g_UsePerspectiveProjection)
         {
@@ -407,7 +430,7 @@ int main(int argc, char* argv[])
         
         // Desenhamos o modelo do plano
         model = Matrix_Translate(0.0f,-1.0f,0.0f)
-          * Matrix_Scale(2.0f,1.0f,2.0f);
+          * Matrix_Scale(20.0f,1.0f,20.0f);
         glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(object_id_uniform, PLANE);
         DrawVirtualObject("plane");
@@ -974,8 +997,7 @@ void CursorPosCallback(GLFWwindow* window, double xpos, double ypos)
     // parâmetros que definem a posição da câmera dentro da cena virtual.
     // Assim, temos que o usuário consegue controlar a câmera.
 
-    if (g_LeftMouseButtonPressed)
-    {
+    //if (g_LeftMouseButtonPressed) {
         // Deslocamento do cursor do mouse em x e y de coordenadas de tela!
         float dx = xpos - g_LastCursorPosX;
         float dy = ypos - g_LastCursorPosY;
@@ -998,7 +1020,7 @@ void CursorPosCallback(GLFWwindow* window, double xpos, double ypos)
         // cursor como sendo a última posição conhecida do cursor.
         g_LastCursorPosX = xpos;
         g_LastCursorPosY = ypos;
-    }
+   // }
 
     if (g_RightMouseButtonPressed)
     {
@@ -1075,23 +1097,33 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
     //   Se apertar tecla shift+Z então g_AngleZ -= delta;
 
     float delta = 3.141592 / 16; // 22.5 graus, em radianos.
-    if (key == GLFW_KEY_W && action == GLFW_PRESS)
-    {
-//      glm::vec4 camera_lookat_l = glm::vec4(x,-y,z,1.0f); // Ponto "c", centro da câmera
-      cX += 0.1;
+    glm::vec4 normalized = normalize(camera_lookat_l);
+//    glm::vec3 willCross = gml::vec(normalized.x,normalized.y,normalized.z);
+    
+    if (key == GLFW_KEY_W && action == GLFW_PRESS) {
+      wPressed = 1;
     }
-    if (key == GLFW_KEY_A && action == GLFW_PRESS)
-    {
-      cZ += 0.1;
+    if (key == GLFW_KEY_W && action == GLFW_RELEASE) wPressed = 0;
+
+    if (key == GLFW_KEY_A && action == GLFW_PRESS) {
+      aPressed = 1;
     }
-    if (key == GLFW_KEY_A && action == GLFW_PRESS)
-    {
-      cX -= 0.1;
+    if (key == GLFW_KEY_A && action == GLFW_RELEASE) aPressed = 0;
+
+    if (key == GLFW_KEY_D && action == GLFW_PRESS) {
+      dPressed = 1;
     }
+    if (key == GLFW_KEY_D && action == GLFW_RELEASE) dPressed = 0;
+
+    if (key == GLFW_KEY_S && action == GLFW_PRESS) {
+      sPressed = 1;
+    }
+    if (key == GLFW_KEY_S && action == GLFW_RELEASE) sPressed = 0;
+
+    if (key == GLFW_KEY_W && action == GLFW_RELEASE) wPressed = 0;
 
     if (key == GLFW_KEY_X && action == GLFW_PRESS)
     {
-        g_AngleX += (mod & GLFW_MOD_SHIFT) ? -delta : delta;
     }
 
     if (key == GLFW_KEY_Y && action == GLFW_PRESS)
@@ -1113,6 +1145,12 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
         g_ForearmAngleZ = 0.0f;
         g_TorsoPositionX = 0.0f;
         g_TorsoPositionY = 0.0f;
+
+        cX = 1.0;
+        cZ = 1.0;
+        x = 0.0;
+        y = 0.0;
+        z = 0.0;
     }
 
     // Se o usuário apertar a tecla P, utilizamos projeção perspectiva.
@@ -1220,9 +1258,11 @@ void TextRendering_ShowEulerAngles(GLFWwindow* window)
     float pad = TextRendering_LineHeight(window);
 
     char buffer[80];
-    snprintf(buffer, 80, "Euler Angles rotation matrix = Z(%.2f)*Y(%.2f)*X(%.2f)\n", g_AngleZ, g_AngleY, g_AngleX);
+    snprintf(buffer, 80, "Camera position   = X(%.2f) Y(%.2f) Z(%.2f)\n", cX, cY, cZ);
 
     TextRendering_PrintString(window, buffer, -1.0f+pad/10, -1.0f+2*pad/10, 1.0f);
+    snprintf(buffer, 80, "Look at = X(%.2f) Y(%.2f) Z(%.2f)\n", x, y, z);
+    TextRendering_PrintString(window, buffer, -1.0f+1*pad/10, -1.0f+10*pad/10, 1.0f);
 }
 
 // Escrevemos na tela qual matriz de projeção está sendo utilizada.

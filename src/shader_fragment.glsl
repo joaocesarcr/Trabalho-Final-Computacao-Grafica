@@ -41,7 +41,7 @@ void main()
     vec4 n = normalize(normal);
 
     // Vetor que define o sentido da fonte de luz em relação ao ponto atual.
-    vec4 l = normalize(vec4(1.0,1.0,0.5,0.0));
+    vec4 l = normalize(vec4(1.0,1.0,1.0,0.0));
 
     // Vetor que define o sentido da câmera em relação ao ponto atual.
     vec4 v = normalize(camera_position - p);
@@ -84,9 +84,9 @@ void main()
     }
     else if ( object_id == SPACESHIP )
     {
-        Kd = vec3(0.2,0.2,0.2);
-        Ks = vec3(0.3,0.3,0.3);
-        Ka = vec3(0.0,0.0,0.0);
+        Kd = vec3(1.0,1.0,1.0);
+        Ks = vec3(0.5,0.5,0.5);
+        Ka = vec3(0.4,0.4,0.4);
         q = 20.0;
     }
 
@@ -102,7 +102,7 @@ void main()
     vec3 I = vec3(1.0,1.0,1.0); // PREENCH AQUI o espectro da fonte de luz
 
     // Espectro da luz ambiente
-    vec3 Ia = vec3(0.2,0.2,0.2); // PREENCHA AQUI o espectro da luz ambiente
+    vec3 Ia = vec3(0.5,0.5,0.5); // PREENCHA AQUI o espectro da luz ambiente
 
     // Termo difuso utilizando a lei dos cossenos de Lambert
     // SLIDE 94

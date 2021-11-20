@@ -128,7 +128,7 @@ float y = 0;
 float z = 0;
 
 float cX = 1.0;
-float cY = 1.0;
+float cY = 3.0;
 float cZ = 1.0;
 
 
@@ -456,8 +456,8 @@ int main(int argc, char* argv[])
         glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(object_id_uniform, BUNNY);
         DrawVirtualObject("bunny");
-        //
-         // Desenhamos o modelo do coelho
+        
+        // Desenhamos o modelo do coelho
         model = Matrix_Translate(5.0f,0.0f,0.0f) 
               * Matrix_Rotate_Z(g_AngleZ) 
               * Matrix_Rotate_Y(g_AngleY) 
@@ -466,15 +466,24 @@ int main(int argc, char* argv[])
         glUniform1i(object_id_uniform, BUNNY);
         DrawVirtualObject("bunny");
         
-         // Desenhamos o modelo da nave
-        model = Matrix_Translate(5.0f,5.0f,5.0f);
+        // Desenhamos o modelo da arma
+        r = g_CameraDistance;
+        y = r*sin(g_CameraPhi);
+        z = r*cos(g_CameraPhi)*cos(g_CameraTheta);
+        x = r*cos(g_CameraPhi)*sin(g_CameraTheta);
+
+        model = Matrix_Translate(5,2.8f,5)
+//              * Matrix_Rotate_Y(-x) 
+//              * Matrix_Rotate_X(-y*0.1) 
+              * Matrix_Scale(0.2f,0.2f,0.2f);
+
         glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(object_id_uniform, SPACESHIP);
         DrawVirtualObject("spaceship");
       
         // Desenhamos o modelo do plano
         model = Matrix_Translate(0.0f,-1.0f,0.0f)
-          * Matrix_Scale(20.0f,1.0f,20.0f);
+          * Matrix_Scale(100.0f,1.0f,100.0f);
         glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(object_id_uniform, PLANE);
         DrawVirtualObject("plane");

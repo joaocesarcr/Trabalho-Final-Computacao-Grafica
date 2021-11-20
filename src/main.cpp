@@ -137,6 +137,7 @@ int dPressed = 0;
 
 glm::vec4 camera_lookat_l = glm::vec4(1.0f,1.0f,1.0f,1.0f); // Ponto "c", centro da câmera
 
+//glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 // Definimos uma estrutura que armazenará dados necessários para renderizar
 // cada objeto da cena virtual.
 struct SceneObject
@@ -220,6 +221,7 @@ int main(int argc, char* argv[])
         std::exit(EXIT_FAILURE);
     }
 
+
     // Definimos o callback para impressão de erros da GLFW no terminal
     glfwSetErrorCallback(ErrorCallback);
 
@@ -245,6 +247,9 @@ int main(int argc, char* argv[])
         fprintf(stderr, "ERROR: glfwCreateWindow() failed.\n");
         std::exit(EXIT_FAILURE);
     }
+    
+    //SEM MOUSE
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     // Definimos a função de callback que será chamada sempre que o usuário
     // pressionar alguma tecla do teclado ...
@@ -351,18 +356,31 @@ int main(int argc, char* argv[])
         camera_lookat_l = glm::vec4(x,-y,z,1.0f); 
 
         glm::vec4 normalized = normalize(camera_lookat_l);
-        glm::vec4 distance = glm::vec4(cX,1.0f,cZ,0.0f); 
-        camera_lookat_l += distance;
+        glm::vec3 up = glm::vec3(0.0f,1.0f,0.0f); 
+
+        glm::vec3 look3 = glm::vec3(normalized.x,normalized.y,normalized.z); 
+        glm::vec3 crossed = cross(look3,normalize(up));
+
         // Loop para segurar teclas
         if (wPressed){
           cX += normalized.x * 0.1;
           cZ += normalized.z * 0.1;
         }
+
+        if (aPressed){
+          cX -= crossed.x * 0.1;
+          cZ -= crossed.z * 0.1;
+        }
         if (sPressed){
           cX -= normalized.x * 0.1;
           cZ -= normalized.z * 0.1;
         }
-
+        if (dPressed){
+          cX += crossed.x * 0.1;
+          cZ += crossed.z * 0.1;
+        }
+        glm::vec4 distance = glm::vec4(cX,1.0f,cZ,0.0f); 
+        camera_lookat_l += distance;
         //
         glm::vec4 camera_position_c  = glm::vec4(cX,cY,cZ,1.0f); // Ponto "l", para onde a câmera (look-at) estará sempre olhando
         glm::vec4 camera_view_vector = camera_lookat_l - camera_position_c; // Vetor "view", sentido para onde a câmera está virada
@@ -1097,8 +1115,6 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
     //   Se apertar tecla shift+Z então g_AngleZ -= delta;
 
     float delta = 3.141592 / 16; // 22.5 graus, em radianos.
-    glm::vec4 normalized = normalize(camera_lookat_l);
-//    glm::vec3 willCross = gml::vec(normalized.x,normalized.y,normalized.z);
     
     if (key == GLFW_KEY_W && action == GLFW_PRESS) {
       wPressed = 1;

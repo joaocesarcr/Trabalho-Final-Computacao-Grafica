@@ -118,6 +118,9 @@ void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
 void CursorPosCallback(GLFWwindow* window, double xpos, double ypos);
 void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 
+// DeltaTIME
+float deltaTime;
+
 // Coordenadas da camera
 float r;
 float x = 0;
@@ -300,6 +303,11 @@ int main(int argc, char* argv[])
     ComputeNormals(&planemodel);
     BuildTrianglesAndAddToVirtualScene(&planemodel);
 
+    ObjModel spaceshipmodel("../../data/spaceship.obj");
+    ComputeNormals(&spaceshipmodel);
+    BuildTrianglesAndAddToVirtualScene(&spaceshipmodel);
+
+
     if ( argc > 1 )
     {
         ObjModel model(argv[1]);
@@ -361,23 +369,25 @@ int main(int argc, char* argv[])
         glm::vec3 look3 = glm::vec3(normalized.x,normalized.y,normalized.z); 
         glm::vec3 crossed = cross(look3,normalize(up));
 
+        float cameraSpeed = 0.01 * deltaTime;
         // Loop para segurar teclas
+        
         if (wPressed){
-          cX += normalized.x * 0.1;
-          cZ += normalized.z * 0.1;
+          cX += normalized.x * cameraSpeed;
+          cZ += normalized.z * cameraSpeed;
         }
 
         if (aPressed){
-          cX -= crossed.x * 0.1;
-          cZ -= crossed.z * 0.1;
+          cX -= crossed.x * cameraSpeed;
+          cZ -= crossed.z * cameraSpeed;
         }
         if (sPressed){
-          cX -= normalized.x * 0.1;
-          cZ -= normalized.z * 0.1;
+          cX -= normalized.x * cameraSpeed;
+          cZ -= normalized.z * cameraSpeed;
         }
         if (dPressed){
-          cX += crossed.x * 0.1;
-          cZ += crossed.z * 0.1;
+          cX += crossed.x * cameraSpeed;
+          cZ += crossed.z * cameraSpeed;
         }
         glm::vec4 distance = glm::vec4(cX,1.0f,cZ,0.0f); 
         camera_lookat_l += distance;
@@ -396,7 +406,7 @@ int main(int argc, char* argv[])
         // Note que, no sistema de coordenadas da câmera, os planos near e far
         // estão no sentido negativo! Veja slides 176-204 do documento Aula_09_Projecoes.pdf.
         float nearplane = -0.1f;  // Posição do "near plane"
-        float farplane  = -30.0f; // Posição do "far plane"
+        float farplane  = -500.0f; // Posição do "far plane"
 
         if (g_UsePerspectiveProjection)
         {
@@ -430,15 +440,25 @@ int main(int argc, char* argv[])
         #define SPHERE 0
         #define BUNNY  1
         #define PLANE  2
+        #define SPACESHIP  3
 
         // Desenhamos o modelo da esfera
-        model = Matrix_Translate(-1.0f,0.0f,0.0f);
+        model = Matrix_Translate(-10.0f,0.0f,0.0f);
         glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(object_id_uniform, SPHERE);
         DrawVirtualObject("sphere");
 
         // Desenhamos o modelo do coelho
-        model = Matrix_Translate(1.0f,0.0f,0.0f) 
+        model = Matrix_Translate(10.0f,0.0f,0.0f) 
+              * Matrix_Rotate_Z(g_AngleZ) 
+              * Matrix_Rotate_Y(g_AngleY) 
+              * Matrix_Rotate_X(g_AngleX);
+        glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(object_id_uniform, BUNNY);
+        DrawVirtualObject("bunny");
+        //
+         // Desenhamos o modelo do coelho
+        model = Matrix_Translate(5.0f,0.0f,0.0f) 
               * Matrix_Rotate_Z(g_AngleZ) 
               * Matrix_Rotate_Y(g_AngleY) 
               * Matrix_Rotate_X(g_AngleX);
@@ -446,6 +466,12 @@ int main(int argc, char* argv[])
         glUniform1i(object_id_uniform, BUNNY);
         DrawVirtualObject("bunny");
         
+         // Desenhamos o modelo da nave
+        model = Matrix_Translate(5.0f,5.0f,5.0f);
+        glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(object_id_uniform, SPACESHIP);
+        DrawVirtualObject("spaceship");
+      
         // Desenhamos o modelo do plano
         model = Matrix_Translate(0.0f,-1.0f,0.0f)
           * Matrix_Scale(20.0f,1.0f,20.0f);
@@ -453,8 +479,6 @@ int main(int argc, char* argv[])
         glUniform1i(object_id_uniform, PLANE);
         DrawVirtualObject("plane");
 
-
-        // Den
 
         // Pegamos um vértice com coordenadas de modelo (0.5, 0.5, 0.5, 1) e o
         // passamos por todos os sistemas de coordenadas armazenados nas
@@ -1302,6 +1326,14 @@ void TextRendering_ShowFramesPerSecond(GLFWwindow* window)
 {
     if ( !g_ShowInfoText )
         return;
+    
+    // Delta time
+    // FONTE: https://learnopengl.com/Getting-started/Camera, seção MOVEMENT SPEED
+    deltaTime = 0.0f; // Time between current frame and last frame
+    float lastFrame = 0.0f; // Time of last frame
+    float currentFrame = glfwGetTime();
+    deltaTime = currentFrame - lastFrame;
+    lastFrame = currentFrame; 
 
     // Variáveis estáticas (static) mantém seus valores entre chamadas
     // subsequentes da função!

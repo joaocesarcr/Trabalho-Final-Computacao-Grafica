@@ -79,6 +79,13 @@ struct ObjModel
 };
 
 
+struct Bullet {
+  glm::vec4 position = glm::vec4(0.0f,0.0f,0.0f,0.0f);
+  float velocity;
+  struct Bullet* nextBullet;
+  struct Bullet* prevBullet;
+};
+
 // Declaração de funções utilizadas para pilha de matrizes de modelagem.
 void PushMatrix(glm::mat4 M);
 void PopMatrix(glm::mat4& M);
@@ -437,31 +444,32 @@ int main(int argc, char* argv[])
         #define GUN1   3
 
         // Desenhamos o modelo da esfera
-        model = Matrix_Translate(-1.0f,0.0f,0.0f)
+        model = Matrix_Translate(-10.0f,0.0f,0.0f)
               * Matrix_Rotate_Z(0.6f)
-              * Matrix_Rotate_X(0.2f)
-              * Matrix_Rotate_Y(g_AngleY + (float)glfwGetTime() * 0.1f);
+              * Matrix_Rotate_X(0.2f);
+//              * Matrix_Rotate_Y(g_AngleY + (float)glfwGetTime() * 0.1f);
         glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(object_id_uniform, SPHERE);
         DrawVirtualObject("sphere");
 
         // Desenhamos o modelo do coelho
-        model = Matrix_Translate(1.0f,0.0f,0.0f)
-              * Matrix_Rotate_X(g_AngleX + (float)glfwGetTime() * 0.1f);
+        model = Matrix_Translate(10.0f,0.0f,0.0f);
+//              * Matrix_Rotate_X(g_AngleX + (float)glfwGetTime() * 0.1f);
         glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(object_id_uniform, BUNNY);
         DrawVirtualObject("bunny");
 
         // Desenhamos o plano do chão
-        model = Matrix_Translate(0.0f,-1.1f,0.0f)
+        model = Matrix_Translate(0.0f,-1.f,0.0f)
                 * Matrix_Scale(50.0f,1.0f,50.0f);
         glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(object_id_uniform, PLANE);
         DrawVirtualObject("plane");
 
         // Desenhamos arma 1
-        model = Matrix_Translate(0.0f,5.0f,0.0f)
-                * Matrix_Scale(0.5f,0.5f,0.5f);
+        model = Matrix_Translate(cX+0.5,cY - 0.5,cZ-0.5)
+                * Matrix_Scale(0.5f,0.5f,0.5f)
+                * Matrix_Rotate_Y(3);
         glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(object_id_uniform, GUN1);
         DrawVirtualObject("gun1");

@@ -5,8 +5,11 @@
 //    INF01047 Fundamentos de Computação Gráfica
 //               Prof. Eduardo Gastal
 //
-//                   LABORATÓRIO 4
+//                   LABORATÓRIO 5
 //
+
+// Não era possível compilar no macOS usando make sem esse define.
+#define STB_IMAGE_IMPLEMENTATION #include <stb_image.h>
 
 // Arquivos "headers" padrões de C podem ser incluídos em um
 // programa C++, sendo necessário somente adicionar o caractere
@@ -41,6 +44,8 @@
 
 // Headers da biblioteca para carregar modelos obj
 #include <tiny_obj_loader.h>
+
+#include <stb_image.h>
 
 // Headers locais, definidos na pasta "include/"
 #include "utils.h"
@@ -83,6 +88,7 @@ void PopMatrix(glm::mat4& M);
 void BuildTrianglesAndAddToVirtualScene(ObjModel*); // Constrói representação de um ObjModel como malha de triângulos para renderização
 void ComputeNormals(ObjModel* model); // Computa normais de um ObjModel, caso não existam.
 void LoadShadersFromFiles(); // Carrega os shaders de vértice e fragmento, criando um programa de GPU
+void LoadTextureImage(const char* filename, int parameter); // Função que carrega imagens de textura
 void DrawVirtualObject(const char* object_name); // Desenha um objeto armazenado em g_VirtualScene
 GLuint LoadShader_Vertex(const char* filename);   // Carrega um vertex shader
 GLuint LoadShader_Fragment(const char* filename); // Carrega um fragment shader
@@ -119,28 +125,25 @@ void CursorPosCallback(GLFWwindow* window, double xpos, double ypos);
 void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 
 // DeltaTIME
-float deltaTime;
+float lastFrame = 0.0f; // Time of last frame
+float deltaTime = 0;
 
-// Coordenadas da camera
-float r;
-float x = 0;
-float y = 0;
-float z = 0;
+// Tipo camera
+int freeCamera = 1;
+// Camera pos
+float cX = 1.0f;
+float cY = 3.0f;
+float cZ = 1.0f;
 
-float cX = 1.0;
-float cY = 3.0;
-float cZ = 1.0;
-
-
-// PressedKeys;
+glm::vec4 camera_lookat_l = glm::vec4(1.0f,3.0f,1.0f,1.0f);
+// Mov
 int wPressed = 0;
 int aPressed = 0;
 int sPressed = 0;
 int dPressed = 0;
+void HandleMovment();
 
-glm::vec4 camera_lookat_l = glm::vec4(1.0f,1.0f,1.0f,1.0f); // Ponto "c", centro da câmera
 
-//glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 // Definimos uma estrutura que armazenará dados necessários para renderizar
 // cada objeto da cena virtual.
 struct SceneObject
@@ -150,6 +153,8 @@ struct SceneObject
     size_t       num_indices; // Número de índices do objeto dentro do vetor indices[] definido em BuildTrianglesAndAddToVirtualScene()
     GLenum       rendering_mode; // Modo de rasterização (GL_TRIANGLES, GL_TRIANGLE_STRIP, etc.)
     GLuint       vertex_array_object_id; // ID do VAO onde estão armazenados os atributos do modelo
+    glm::vec3    bbox_min; // Axis-Aligned Bounding Box do objeto
+    glm::vec3    bbox_max;
 };
 
 // Abaixo definimos variáveis globais utilizadas em várias funções do código.
@@ -183,12 +188,7 @@ bool g_MiddleMouseButtonPressed = false; // Análogo para botão do meio do mous
 // renderização.
 float g_CameraTheta = 0.0f; // Ângulo no plano ZX em relação ao eixo Z
 float g_CameraPhi = 0.0f;   // Ângulo em relação ao eixo Y
-float g_CameraDistance = 3.0f; // Distância da câmera para a origem
-
-float gX = 0.0f; // Ângulo no plano ZX em relação ao eixo Z
-float gY = 0.0f;   // Ângulo em relação ao eixo Y
-float gZ = 0.0f; // Distância da câmera para a origem
-
+float g_CameraDistance = 10.5f; // Distância da câmera para a origem
 
 // Variáveis que controlam rotação do antebraço
 float g_ForearmAngleZ = 0.0f;
@@ -212,6 +212,11 @@ GLint model_uniform;
 GLint view_uniform;
 GLint projection_uniform;
 GLint object_id_uniform;
+GLint bbox_min_uniform;
+GLint bbox_max_uniform;
+
+// Número de texturas carregadas pela função LoadTextureImage()
+GLuint g_NumLoadedTextures = 0;
 
 int main(int argc, char* argv[])
 {
@@ -224,7 +229,6 @@ int main(int argc, char* argv[])
         std::exit(EXIT_FAILURE);
     }
 
-
     // Definimos o callback para impressão de erros da GLFW no terminal
     glfwSetErrorCallback(ErrorCallback);
 
@@ -235,6 +239,7 @@ int main(int argc, char* argv[])
     #ifdef __APPLE__
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     #endif
+  
 
     // Pedimos para utilizar o perfil "core", isto é, utilizaremos somente as
     // funções modernas de OpenGL.
@@ -243,7 +248,7 @@ int main(int argc, char* argv[])
     // Criamos uma janela do sistema operacional, com 800 colunas e 600 linhas
     // de pixels, e com título "INF01047 ...".
     GLFWwindow* window;
-    window = glfwCreateWindow(800, 600, "INF01047 - 00304342 - João César de Paula Criscolo", NULL, NULL);
+    window = glfwCreateWindow(800, 600, "INF01047 - Seu Cartao - Seu Nome", NULL, NULL);
     if (!window)
     {
         glfwTerminate();
@@ -251,8 +256,8 @@ int main(int argc, char* argv[])
         std::exit(EXIT_FAILURE);
     }
     
-    //SEM MOUSE
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    // SEM MOUSE
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);     
 
     // Definimos a função de callback que será chamada sempre que o usuário
     // pressionar alguma tecla do teclado ...
@@ -290,6 +295,12 @@ int main(int argc, char* argv[])
     //
     LoadShadersFromFiles();
 
+    // Carregamos duas imagens para serem utilizadas como textura
+    //LoadTextureImage("../../data/tc-earth_daymap_surface.jpg");      // TextureImage0
+    LoadTextureImage("../../data/mapa.jpg", 0);      // TextureImage0
+    LoadTextureImage("../../data/grass.jpg", 1);      // TextureImage0
+    LoadTextureImage("../../data/roxo.png", 0);      // TextureImage0
+
     // Construímos a representação de objetos geométricos através de malhas de triângulos
     ObjModel spheremodel("../../data/sphere.obj");
     ComputeNormals(&spheremodel);
@@ -303,10 +314,9 @@ int main(int argc, char* argv[])
     ComputeNormals(&planemodel);
     BuildTrianglesAndAddToVirtualScene(&planemodel);
 
-    ObjModel spaceshipmodel("../../data/spaceship.obj");
-    ComputeNormals(&spaceshipmodel);
-    BuildTrianglesAndAddToVirtualScene(&spaceshipmodel);
-
+    ObjModel gun1("../../data/gun1.obj");
+    ComputeNormals(&gun1);
+    BuildTrianglesAndAddToVirtualScene(&gun1);
 
     if ( argc > 1 )
     {
@@ -356,46 +366,30 @@ int main(int argc, char* argv[])
         // variáveis g_CameraDistance, g_CameraPhi, e g_CameraTheta são
         // controladas pelo mouse do usuário. Veja as funções CursorPosCallback()
         // e ScrollCallback().
-        r = g_CameraDistance;
-        y = r*sin(g_CameraPhi);
-        z = r*cos(g_CameraPhi)*cos(g_CameraTheta);
-        x = r*cos(g_CameraPhi)*sin(g_CameraTheta);
+        float r = g_CameraDistance;
+        float y = r*sin(g_CameraPhi);
+        float z = r*cos(g_CameraPhi)*cos(g_CameraTheta);
+        float x = r*cos(g_CameraPhi)*sin(g_CameraTheta);
 
-        camera_lookat_l = glm::vec4(x,-y,z,1.0f); 
-
-        glm::vec4 normalized = normalize(camera_lookat_l);
-        glm::vec3 up = glm::vec3(0.0f,1.0f,0.0f); 
-
-        glm::vec3 look3 = glm::vec3(normalized.x,normalized.y,normalized.z); 
-        glm::vec3 crossed = cross(look3,normalize(up));
-
-        float cameraSpeed = 0.01 * deltaTime;
-        // Loop para segurar teclas
-        
-        if (wPressed){
-          cX += normalized.x * cameraSpeed;
-          cZ += normalized.z * cameraSpeed;
-        }
-
-        if (aPressed){
-          cX -= crossed.x * cameraSpeed;
-          cZ -= crossed.z * cameraSpeed;
-        }
-        if (sPressed){
-          cX -= normalized.x * cameraSpeed;
-          cZ -= normalized.z * cameraSpeed;
-        }
-        if (dPressed){
-          cX += crossed.x * cameraSpeed;
-          cZ += crossed.z * cameraSpeed;
-        }
-        glm::vec4 distance = glm::vec4(cX,1.0f,cZ,0.0f); 
-        camera_lookat_l += distance;
-        //
-        glm::vec4 camera_position_c  = glm::vec4(cX,cY,cZ,1.0f); // Ponto "l", para onde a câmera (look-at) estará sempre olhando
-        glm::vec4 camera_view_vector = camera_lookat_l - camera_position_c; // Vetor "view", sentido para onde a câmera está virada
+        glm::vec4 camera_position_c  = glm::vec4(cX,cY,cZ,1.0f); // Ponto "c", centro da câmera
+        glm::vec4 camera_view_vector = camera_lookat_l - camera_position_c; 
         glm::vec4 camera_up_vector   = glm::vec4(0.0f,1.0f,0.0f,0.0f); // Vetor "up" fixado para apontar para o "céu" (eito Y global)
 
+        if (freeCamera) {
+          camera_lookat_l  = glm::vec4(x,-y,z,1.0f); // Ponto "l", para onde a câmera (look-at) estará sempre olhando
+          HandleMovment();
+          float cameraSpeed = 10.0 * deltaTime;
+          camera_position_c  = glm::vec4(cX,cY,cZ,1.0f); // Ponto "c", centro da câmera
+          camera_view_vector = camera_lookat_l - camera_position_c; 
+          camera_up_vector   = glm::vec4(0.0f,1.0f,0.0f,0.0f); // Vetor "up" fixado para apontar para o "céu" (eito Y global)
+
+          glm::vec4 distance  = glm::vec4(cX,1.0,cZ,0.0f);
+          camera_lookat_l += distance;
+        } else {
+          camera_lookat_l  = glm::vec4(0,0,0,1.0f); // Ponto "l", para onde a câmera (look-at) estará sempre olhando
+          camera_position_c  = glm::vec4(x,-y,z,1.0f); // Ponto "c", centro da câmera
+          camera_view_vector = camera_lookat_l - camera_position_c; 
+        }
         // Computamos a matriz "View" utilizando os parâmetros da câmera para
         // definir o sistema de coordenadas da câmera.  Veja slides 2-14, 184-190 e 236-242 do documento Aula_08_Sistemas_de_Coordenadas.pdf.
         glm::mat4 view = Matrix_Camera_View(camera_position_c, camera_view_vector, camera_up_vector);
@@ -406,7 +400,7 @@ int main(int argc, char* argv[])
         // Note que, no sistema de coordenadas da câmera, os planos near e far
         // estão no sentido negativo! Veja slides 176-204 do documento Aula_09_Projecoes.pdf.
         float nearplane = -0.1f;  // Posição do "near plane"
-        float farplane  = -500.0f; // Posição do "far plane"
+        float farplane  = 50.0f; // Posição do "far plane"
 
         if (g_UsePerspectiveProjection)
         {
@@ -440,54 +434,37 @@ int main(int argc, char* argv[])
         #define SPHERE 0
         #define BUNNY  1
         #define PLANE  2
-        #define SPACESHIP  3
+        #define GUN1   3
 
         // Desenhamos o modelo da esfera
-        model = Matrix_Translate(-10.0f,0.0f,0.0f);
+        model = Matrix_Translate(-1.0f,0.0f,0.0f)
+              * Matrix_Rotate_Z(0.6f)
+              * Matrix_Rotate_X(0.2f)
+              * Matrix_Rotate_Y(g_AngleY + (float)glfwGetTime() * 0.1f);
         glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(object_id_uniform, SPHERE);
         DrawVirtualObject("sphere");
 
         // Desenhamos o modelo do coelho
-        model = Matrix_Translate(10.0f,0.0f,0.0f) 
-              * Matrix_Rotate_Z(g_AngleZ) 
-              * Matrix_Rotate_Y(g_AngleY) 
-              * Matrix_Rotate_X(g_AngleX);
+        model = Matrix_Translate(1.0f,0.0f,0.0f)
+              * Matrix_Rotate_X(g_AngleX + (float)glfwGetTime() * 0.1f);
         glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(object_id_uniform, BUNNY);
         DrawVirtualObject("bunny");
-        
-        // Desenhamos o modelo do coelho
-        model = Matrix_Translate(5.0f,0.0f,0.0f) 
-              * Matrix_Rotate_Z(g_AngleZ) 
-              * Matrix_Rotate_Y(g_AngleY) 
-              * Matrix_Rotate_X(g_AngleX);
-        glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(object_id_uniform, BUNNY);
-        DrawVirtualObject("bunny");
-        
-        // Desenhamos o modelo da arma
-        r = g_CameraDistance;
-        y = r*sin(g_CameraPhi);
-        z = r*cos(g_CameraPhi)*cos(g_CameraTheta);
-        x = r*cos(g_CameraPhi)*sin(g_CameraTheta);
 
-        model = Matrix_Translate(5,2.8f,5)
-//              * Matrix_Rotate_Y(-x) 
-//              * Matrix_Rotate_X(-y*0.1) 
-              * Matrix_Scale(0.2f,0.2f,0.2f);
-
-        glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(object_id_uniform, SPACESHIP);
-        DrawVirtualObject("spaceship");
-      
-        // Desenhamos o modelo do plano
-        model = Matrix_Translate(0.0f,-1.0f,0.0f)
-          * Matrix_Scale(100.0f,1.0f,100.0f);
+        // Desenhamos o plano do chão
+        model = Matrix_Translate(0.0f,-1.1f,0.0f)
+                * Matrix_Scale(50.0f,1.0f,50.0f);
         glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(object_id_uniform, PLANE);
         DrawVirtualObject("plane");
 
+        // Desenhamos arma 1
+        model = Matrix_Translate(0.0f,5.0f,0.0f)
+                * Matrix_Scale(0.5f,0.5f,0.5f);
+        glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(object_id_uniform, GUN1);
+        DrawVirtualObject("gun1");
 
         // Pegamos um vértice com coordenadas de modelo (0.5, 0.5, 0.5, 1) e o
         // passamos por todos os sistemas de coordenadas armazenados nas
@@ -529,6 +506,61 @@ int main(int argc, char* argv[])
     return 0;
 }
 
+// Função que carrega uma imagem para ser utilizada como textura
+void LoadTextureImage(const char* filename, int parameter)
+{
+    printf("Carregando imagem \"%s\"... ", filename);
+
+    // Primeiro fazemos a leitura da imagem do disco
+    stbi_set_flip_vertically_on_load(true);
+    int width;
+    int height;
+    int channels;
+    unsigned char *data = stbi_load(filename, &width, &height, &channels, 3);
+
+    if ( data == NULL )
+    {
+        fprintf(stderr, "ERROR: Cannot open image file \"%s\".\n", filename);
+        std::exit(EXIT_FAILURE);
+    }
+
+    printf("OK (%dx%d).\n", width, height);
+
+    // Agora criamos objetos na GPU com OpenGL para armazenar a textura
+    GLuint texture_id;
+    GLuint sampler_id;
+    glGenTextures(1, &texture_id);
+    glGenSamplers(1, &sampler_id);
+
+    // Veja slides 95-96 do documento Aula_20_Mapeamento_de_Texturas.pdf
+    
+    // Parâmetros de amostragem da textura.
+    /*
+    glSamplerParameteri(sampler_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glSamplerParameteri(sampler_id, GL_TEXTURE_MIN_FILTER, GL_REPEAT);
+    */
+
+
+    // Agora enviamos a imagem lida do disco para a GPU
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+    glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
+    glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
+
+    GLuint textureunit = g_NumLoadedTextures;
+    glActiveTexture(GL_TEXTURE0 + textureunit);
+    glBindTexture(GL_TEXTURE_2D, texture_id);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB8, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    glBindSampler(textureunit, sampler_id);
+
+    stbi_image_free(data);
+
+    g_NumLoadedTextures += 1;
+}
+
 // Função que desenha um objeto armazenado em g_VirtualScene. Veja definição
 // dos objetos na função BuildTrianglesAndAddToVirtualScene().
 void DrawVirtualObject(const char* object_name)
@@ -537,6 +569,13 @@ void DrawVirtualObject(const char* object_name)
     // vértices apontados pelo VAO criado pela função BuildTrianglesAndAddToVirtualScene(). Veja
     // comentários detalhados dentro da definição de BuildTrianglesAndAddToVirtualScene().
     glBindVertexArray(g_VirtualScene[object_name].vertex_array_object_id);
+
+    // Setamos as variáveis "bbox_min" e "bbox_max" do fragment shader
+    // com os parâmetros da axis-aligned bounding box (AABB) do modelo.
+    glm::vec3 bbox_min = g_VirtualScene[object_name].bbox_min;
+    glm::vec3 bbox_max = g_VirtualScene[object_name].bbox_max;
+    glUniform4f(bbox_min_uniform, bbox_min.x, bbox_min.y, bbox_min.z, 1.0f);
+    glUniform4f(bbox_max_uniform, bbox_max.x, bbox_max.y, bbox_max.z, 1.0f);
 
     // Pedimos para a GPU rasterizar os vértices dos eixos XYZ
     // apontados pelo VAO como linhas. Veja a definição de
@@ -595,6 +634,15 @@ void LoadShadersFromFiles()
     view_uniform            = glGetUniformLocation(program_id, "view"); // Variável da matriz "view" em shader_vertex.glsl
     projection_uniform      = glGetUniformLocation(program_id, "projection"); // Variável da matriz "projection" em shader_vertex.glsl
     object_id_uniform       = glGetUniformLocation(program_id, "object_id"); // Variável "object_id" em shader_fragment.glsl
+    bbox_min_uniform        = glGetUniformLocation(program_id, "bbox_min");
+    bbox_max_uniform        = glGetUniformLocation(program_id, "bbox_max");
+
+    // Variáveis em "shader_fragment.glsl" para acesso das imagens de textura
+    glUseProgram(program_id);
+    glUniform1i(glGetUniformLocation(program_id, "TextureImage0"), 0);
+    glUniform1i(glGetUniformLocation(program_id, "TextureImage1"), 1);
+    glUniform1i(glGetUniformLocation(program_id, "TextureImage2"), 2);
+    glUseProgram(0);
 }
 
 // Função que pega a matriz M e guarda a mesma no topo da pilha
@@ -656,8 +704,6 @@ void ComputeNormals(ObjModel* model)
             const glm::vec4  b = vertices[1];
             const glm::vec4  c = vertices[2];
 
-            // PREENCHA AQUI o cálculo da normal de um triângulo cujos vértices
-            // estão nos pontos "a", "b", e "c", definidos no sentido anti-horário.
             const glm::vec4  n = crossproduct(b-a,c-a);
 
             for (size_t vertex = 0; vertex < 3; ++vertex)
@@ -699,6 +745,12 @@ void BuildTrianglesAndAddToVirtualScene(ObjModel* model)
         size_t first_index = indices.size();
         size_t num_triangles = model->shapes[shape].mesh.num_face_vertices.size();
 
+        const float minval = std::numeric_limits<float>::min();
+        const float maxval = std::numeric_limits<float>::max();
+
+        glm::vec3 bbox_min = glm::vec3(maxval,maxval,maxval);
+        glm::vec3 bbox_max = glm::vec3(minval,minval,minval);
+
         for (size_t triangle = 0; triangle < num_triangles; ++triangle)
         {
             assert(model->shapes[shape].mesh.num_face_vertices[triangle] == 3);
@@ -717,6 +769,13 @@ void BuildTrianglesAndAddToVirtualScene(ObjModel* model)
                 model_coefficients.push_back( vy ); // Y
                 model_coefficients.push_back( vz ); // Z
                 model_coefficients.push_back( 1.0f ); // W
+
+                bbox_min.x = std::min(bbox_min.x, vx);
+                bbox_min.y = std::min(bbox_min.y, vy);
+                bbox_min.z = std::min(bbox_min.z, vz);
+                bbox_max.x = std::max(bbox_max.x, vx);
+                bbox_max.y = std::max(bbox_max.y, vy);
+                bbox_max.z = std::max(bbox_max.z, vz);
 
                 // Inspecionando o código da tinyobjloader, o aluno Bernardo
                 // Sulzbach (2017/1) apontou que a maneira correta de testar se
@@ -752,6 +811,9 @@ void BuildTrianglesAndAddToVirtualScene(ObjModel* model)
         theobject.num_indices    = last_index - first_index + 1; // Número de indices
         theobject.rendering_mode = GL_TRIANGLES;       // Índices correspondem ao tipo de rasterização GL_TRIANGLES.
         theobject.vertex_array_object_id = vertex_array_object_id;
+
+        theobject.bbox_min = bbox_min;
+        theobject.bbox_max = bbox_max;
 
         g_VirtualScene[model->shapes[shape].name] = theobject;
     }
@@ -1048,7 +1110,6 @@ void CursorPosCallback(GLFWwindow* window, double xpos, double ypos)
     // parâmetros que definem a posição da câmera dentro da cena virtual.
     // Assim, temos que o usuário consegue controlar a câmera.
 
-    //if (g_LeftMouseButtonPressed) {
         // Deslocamento do cursor do mouse em x e y de coordenadas de tela!
         float dx = xpos - g_LastCursorPosX;
         float dy = ypos - g_LastCursorPosY;
@@ -1071,7 +1132,6 @@ void CursorPosCallback(GLFWwindow* window, double xpos, double ypos)
         // cursor como sendo a última posição conhecida do cursor.
         g_LastCursorPosX = xpos;
         g_LastCursorPosY = ypos;
-   // }
 
     if (g_RightMouseButtonPressed)
     {
@@ -1123,6 +1183,36 @@ void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
         g_CameraDistance = verysmallnumber;
 }
 
+void HandleMovment() {
+  glm::vec4 normalized = normalize(camera_lookat_l);
+  glm::vec3 up = glm::vec3(0.0f,1.0f,0.0f); 
+
+  glm::vec3 look3 = glm::vec3(normalized.x,normalized.y,normalized.z); 
+  glm::vec3 crossed = cross(look3,normalize(up));
+
+  float cameraSpeed = 10.0 * deltaTime;
+  // Loop para segurar teclas
+  
+  if (wPressed){
+    cX += normalized.x * cameraSpeed;
+    cZ += normalized.z * cameraSpeed;
+  }
+
+  if (aPressed){
+    cX -= crossed.x * cameraSpeed;
+    cZ -= crossed.z * cameraSpeed;
+  }
+  if (sPressed){
+    cX -= normalized.x * cameraSpeed;
+    cZ -= normalized.z * cameraSpeed;
+  }
+  if (dPressed){
+    cX += crossed.x * cameraSpeed;
+    cZ += crossed.z * cameraSpeed;
+  }
+  glm::vec4 distance = glm::vec4(cX,1.0f,cZ,0.0f); 
+  camera_lookat_l += distance;
+}
 // Definição da função que será chamada sempre que o usuário pressionar alguma
 // tecla do teclado. Veja http://www.glfw.org/docs/latest/input_guide.html#input_key
 void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
@@ -1139,6 +1229,19 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GL_TRUE);
 
+    // MOVMENT
+    if (key == GLFW_KEY_W && action == GLFW_PRESS) wPressed = 1;
+    if (key == GLFW_KEY_A && action == GLFW_PRESS) aPressed = 1;
+    if (key == GLFW_KEY_S && action == GLFW_PRESS) sPressed = 1;
+    if (key == GLFW_KEY_D && action == GLFW_PRESS) dPressed = 1;
+    if (key == GLFW_KEY_W && action == GLFW_RELEASE) wPressed = 0;
+    if (key == GLFW_KEY_A && action == GLFW_RELEASE) aPressed = 0;
+    if (key == GLFW_KEY_S && action == GLFW_RELEASE) sPressed = 0;
+    if (key == GLFW_KEY_D && action == GLFW_RELEASE) dPressed = 0;
+
+    if (key == GLFW_KEY_C && action == GLFW_PRESS) freeCamera = !freeCamera;
+
+
     // O código abaixo implementa a seguinte lógica:
     //   Se apertar tecla X       então g_AngleX += delta;
     //   Se apertar tecla shift+X então g_AngleX -= delta;
@@ -1148,31 +1251,10 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
     //   Se apertar tecla shift+Z então g_AngleZ -= delta;
 
     float delta = 3.141592 / 16; // 22.5 graus, em radianos.
-    
-    if (key == GLFW_KEY_W && action == GLFW_PRESS) {
-      wPressed = 1;
-    }
-    if (key == GLFW_KEY_W && action == GLFW_RELEASE) wPressed = 0;
-
-    if (key == GLFW_KEY_A && action == GLFW_PRESS) {
-      aPressed = 1;
-    }
-    if (key == GLFW_KEY_A && action == GLFW_RELEASE) aPressed = 0;
-
-    if (key == GLFW_KEY_D && action == GLFW_PRESS) {
-      dPressed = 1;
-    }
-    if (key == GLFW_KEY_D && action == GLFW_RELEASE) dPressed = 0;
-
-    if (key == GLFW_KEY_S && action == GLFW_PRESS) {
-      sPressed = 1;
-    }
-    if (key == GLFW_KEY_S && action == GLFW_RELEASE) sPressed = 0;
-
-    if (key == GLFW_KEY_W && action == GLFW_RELEASE) wPressed = 0;
 
     if (key == GLFW_KEY_X && action == GLFW_PRESS)
     {
+        g_AngleX += (mod & GLFW_MOD_SHIFT) ? -delta : delta;
     }
 
     if (key == GLFW_KEY_Y && action == GLFW_PRESS)
@@ -1194,12 +1276,6 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
         g_ForearmAngleZ = 0.0f;
         g_TorsoPositionX = 0.0f;
         g_TorsoPositionY = 0.0f;
-
-        cX = 1.0;
-        cZ = 1.0;
-        x = 0.0;
-        y = 0.0;
-        z = 0.0;
     }
 
     // Se o usuário apertar a tecla P, utilizamos projeção perspectiva.
@@ -1307,11 +1383,9 @@ void TextRendering_ShowEulerAngles(GLFWwindow* window)
     float pad = TextRendering_LineHeight(window);
 
     char buffer[80];
-    snprintf(buffer, 80, "Camera position   = X(%.2f) Y(%.2f) Z(%.2f)\n", cX, cY, cZ);
+    snprintf(buffer, 80, "Euler Angles rotation matrix = Z(%.2f)*Y(%.2f)*X(%.2f)\n", g_AngleZ, g_AngleY, g_AngleX);
 
     TextRendering_PrintString(window, buffer, -1.0f+pad/10, -1.0f+2*pad/10, 1.0f);
-    snprintf(buffer, 80, "Look at = X(%.2f) Y(%.2f) Z(%.2f)\n", x, y, z);
-    TextRendering_PrintString(window, buffer, -1.0f+1*pad/10, -1.0f+10*pad/10, 1.0f);
 }
 
 // Escrevemos na tela qual matriz de projeção está sendo utilizada.
@@ -1335,11 +1409,8 @@ void TextRendering_ShowFramesPerSecond(GLFWwindow* window)
 {
     if ( !g_ShowInfoText )
         return;
-    
     // Delta time
     // FONTE: https://learnopengl.com/Getting-started/Camera, seção MOVEMENT SPEED
-    deltaTime = 0.0f; // Time between current frame and last frame
-    float lastFrame = 0.0f; // Time of last frame
     float currentFrame = glfwGetTime();
     deltaTime = currentFrame - lastFrame;
     lastFrame = currentFrame; 

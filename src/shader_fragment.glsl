@@ -23,6 +23,7 @@ uniform mat4 projection;
 #define BUNNY  1
 #define PLANE  2
 #define GUN1   3
+#define CUBE   4
 uniform int object_id;
 
 // Parâmetros da axis-aligned bounding box (AABB) do modelo
@@ -146,7 +147,19 @@ void main()
 
         U = (position_model.x - minx) / (maxx - minx);
         V = (position_model.y - miny) / (maxy - miny);
-        Kd0 = texture(TextureImage2, vec2(U,V)).rgb;
+
+        vec4 bbox_center = (bbox_min + bbox_max) / 2.0;
+
+/*
+        */
+        vec4 vP = position_model - bbox_center;
+        float theta = atan(vP.x, vP.z);
+        float phi = asin(vP.y);
+
+        U = (theta+ M_PI) / (2*M_PI);
+        V = (phi + M_PI_2) / M_PI;
+
+        Kd0 = texture(TextureImage0, vec2(U,V)).rgb;
         Ks = vec3(0.3,0.3,0.3);
         Kd = Kd0;
         Ka = vec3(0.0,0.0,0.0);
@@ -154,14 +167,38 @@ void main()
 
     }
 
-    else if ( object_id == PLANE )
-    {
+    else if ( object_id == PLANE ) {
+
+				// U = (position_model.x - floor(position_model.x));
+			  // V = (position_model.y - floor(position_model.y));
         // Coordenadas de textura do plano, obtidas do arquivo OBJ.
         U = texcoords.x;
         V = texcoords.y;
+
+        U = U - floor(U);
+        V = V - floor(V);
+
         Ks = vec3(0.3,0.3,0.3);
         Ka = vec3(0.0,0.0,0.0);
-        q = 20.0;
+        q = 40.0;
+
+        Kd0 = texture(TextureImage2, vec2(U,V)).rgb;
+        Kd = Kd0;
+    }
+    else if ( object_id == CUBE ) {
+
+				// U = (position_model.x - floor(position_model.x));
+			  // V = (position_model.y - floor(position_model.y));
+        // Coordenadas de textura do plano, obtidas do arquivo OBJ.
+        U = texcoords.x;
+        V = texcoords.y;
+
+        U = U - floor(U);
+        V = V - floor(V);
+
+        Ks = vec3(0.2,0.2,0.2);
+        Ka = vec3(0.2,0.2,0.2);
+        q = 40.0;
 
         Kd0 = texture(TextureImage1, vec2(U,V)).rgb;
         Kd = Kd0;
@@ -173,6 +210,7 @@ void main()
         Ks = vec3(0.0,0.0,0.0);
         Ka = vec3(0.0,0.0,0.0);
         q = 1.0;
+        Kd0 = Kd;
     }
 
     // Obtemos a refletância difusa a partir da leitura da imagem TextureImage0

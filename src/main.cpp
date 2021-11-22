@@ -141,6 +141,7 @@ void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 // DeltaTIME
 float lastFrame = 0.0f; // Time of last frame
 float deltaTime = 0;
+float cameraSpeed = 30.0 * deltaTime;
 
 // Tipo camera
 int freeCamera = 1;
@@ -161,14 +162,23 @@ int aPressed = 0;
 int sPressed = 0;
 int dPressed = 0;
 
+// Enemy
+int enemiesCreated = 0;
+Enemy enemiesArray[4];
+void enemyMov();
+glm::vec4 moveTo;
+
 void HandleMovment();
-void drawa(glm::mat4 M, GLint model_uniform);
+void draw(ObjModel cube, int index);
 void drawHead(ObjModel cube,glm::mat4 model);
 void drawHelix(ObjModel cube,glm::mat4 model);
-void drawArm(glm::mat4 model, GLint model_uniform, float pos);
-void drawLeg(glm::mat4 model, GLint model_uniform, float pos);
-GLuint BuildTriangles();
-void draw(ObjModel cube);
+
+void createEnemies() {
+  enemiesArray[0].position = glm::vec4(100.0f,10.0f,100.0f,1.0f); 
+  enemiesArray[1].position = glm::vec4(-100.0f,10.0f,100.0f,1.0f); 
+  enemiesArray[2].position = glm::vec4(-100.0f,10.0f,-100.0f,1.0f); 
+  enemiesArray[3].position = glm::vec4(100.0f,10.0f,-100.0f,1.0f); 
+}
 
 // Definimos uma estrutura que armazenará dados necessários para renderizar
 // cada objeto da cena virtual.
@@ -404,11 +414,18 @@ int main(int argc, char* argv[])
         glm::vec4 camera_position_c  = glm::vec4(cX,cY,cZ,1.0f); // Ponto "c", centro da câmera
         glm::vec4 camera_view_vector = camera_lookat_l - camera_position_c; 
         glm::vec4 camera_up_vector   = glm::vec4(0.0f,1.0f,0.0f,0.0f); // Vetor "up" fixado para apontar para o "céu" (eito Y global)
+        if (enemiesCreated == 0) {
+          createEnemies();
+          enemiesCreated = 1;
+        }
 
         if (freeCamera) {
+          cameraSpeed = 30.0 * deltaTime;
           camera_lookat_l  = glm::vec4(x,-y,z,1.0f); // Ponto "l", para onde a câmera (look-at) estará sempre olhando
           HandleMovment();
-          float cameraSpeed = 30.0 * deltaTime;
+          enemyMov();
+          
+
           camera_position_c  = glm::vec4(cX,cY,cZ,1.0f); // Ponto "c", centro da câmera
           camera_view_vector = camera_lookat_l - camera_position_c; 
           camera_up_vector   = glm::vec4(0.0f,1.0f,0.0f,0.0f); // Vetor "up" fixado para apontar para o "céu" (eito Y global)
@@ -498,16 +515,7 @@ int main(int argc, char* argv[])
         glUniform1i(object_id_uniform, GUN1);
         DrawVirtualObject("gun1");
 
-        // Desenhamos cubo
-				/*
-        model = Matrix_Translate(0.5f,0.5f,0.5f)
-                * Matrix_Scale(0.5f,0.5f,0.5f);
-        glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(object_id_uniform, GUN1);
-        DrawVirtualObject("cube");
-				*/
-
-				draw(cube);
+        for(int i=0;i<4;i++) draw(cube,i);
 
         // Pegamos um vértice com coordenadas de modelo (0.5, 0.5, 0.5, 1) e o
         // passamos por todos os sistemas de coordenadas armazenados nas
@@ -1239,7 +1247,6 @@ void HandleMovment() {
   glm::vec3 look3 = glm::vec3(normalized.x,normalized.y,normalized.z); 
   glm::vec3 crossed = cross(look3,normalize(up));
 
-  float cameraSpeed = 30.0 * deltaTime;
   // Loop para segurar teclas
   
   if (wPressed){
@@ -1261,6 +1268,17 @@ void HandleMovment() {
   }
   glm::vec4 distance = glm::vec4(cX,1.0f,cZ,0.0f); 
   camera_lookat_l += distance;
+}
+
+void enemyMov() {
+  glm::vec4 playerPos = glm::vec4(cX,cY,cZ,1.0f);
+  for(int i=0;i<4;i++) {
+    moveTo = playerPos - enemiesArray[i].position;
+    moveTo = normalize(moveTo);
+    moveTo = (glm::vec4(moveTo.x,0,moveTo.z,0.0f));
+    float enemyVel = cameraSpeed * 0.5;
+    enemiesArray[i].position += moveTo * enemyVel;
+  }
 }
 // Definição da função que será chamada sempre que o usuário pressionar alguma
 // tecla do teclado. Veja http://www.glfw.org/docs/latest/input_guide.html#input_key
@@ -1432,13 +1450,24 @@ void TextRendering_ShowEulerAngles(GLFWwindow* window)
     float pad = TextRendering_LineHeight(window);
 
     char buffer[80];
-    snprintf(buffer, 80, "Camera position   = X(%.2f) Y(%.2f) Z(%.2f)\n", cX, cY, cZ);
 
+    glm::vec4 ePos = enemiesArray[0].position;
+
+    snprintf(buffer, 80, "Camera position   = X(%.2f) Y(%.2f) Z(%.2f)\n", cX, cY, cZ);
     TextRendering_PrintString(window, buffer, -1.0f+pad/10, -1.0f+2*pad/10, 1.0f);
+
     snprintf(buffer, 80, "Look at = X(%.2f) Y(%.2f) Z(%.2f)\n", x, y, z);
     TextRendering_PrintString(window, buffer, -1.0f+1*pad/10, -1.0f+10*pad/10, 1.0f);
+
     snprintf(buffer, 80, "deltaTime = %.2f",deltaTime);
     TextRendering_PrintString(window, buffer, -1.0f+1*pad/10, -1.0f+18*pad/10, 1.0f);
+
+    snprintf(buffer, 80, "Enemy 1 position   = X(%.2f) Y(%.2f) Z(%.2f)\n", ePos.x, ePos.y, ePos.z);
+    TextRendering_PrintString(window, buffer, -1.0f+pad/10, -1.0f+26*pad/10, 1.0f);
+
+    snprintf(buffer, 80, "Enemy 1 look at   = X(%.2f) Y(%.2f) Z(%.2f)\n", moveTo.x, moveTo.y, moveTo.z);
+    TextRendering_PrintString(window, buffer, -1.0f+pad/10, -1.0f+34*pad/10, 1.0f);
+
 
 }
 
@@ -1729,24 +1758,22 @@ void DrawCube(GLint render_as_black_uniform) {
     );
 }
 
-void draw(ObjModel cube) {
-	Enemy enemy;
-	enemy.position = glm::vec4(0.0f,0.0f,0.0f,0.0f);
-	glm::vec4 position = enemy.position;
+void draw(ObjModel cube, int index) {
+	glm::vec4 position = enemiesArray[index].position;
 
 	glm::mat4 model = Matrix_Identity(); // Transformação identidade de modelagem
 	ComputeNormals(&cube);
 	BuildTrianglesAndAddToVirtualScene(&cube);
 
-	model = Matrix_Translate(position.x,position.y+4,position.z)
+	model = Matrix_Translate(position.x,position.y,position.z)
 					* Matrix_Scale(3.0f,3.0f,3.0f);
-
-	PushMatrix(model); // Guardamos matriz model atual na pilha 
 
 	glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
 	glUniform1i(object_id_uniform, CUBE);
 	DrawVirtualObject("cube");
 	drawHead(cube,model);
+
+	PushMatrix(model); // Guardamos matriz model atual na pilha 
 }
 
 void drawHead(ObjModel cube,glm::mat4 model) {
@@ -1762,6 +1789,7 @@ void drawHead(ObjModel cube,glm::mat4 model) {
 			model *=	 Matrix_Rotate_Y(720/3);
 			drawHelix(cube,model);
 		}
+	PopMatrix(model); // Guardamos matriz model atual na pilha 
 }
 
 void drawHelix(ObjModel cube,glm::mat4 model) {

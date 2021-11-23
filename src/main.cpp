@@ -92,6 +92,7 @@ struct Enemy {
 	int health;
 };
 
+
 // Declaração de funções utilizadas para pilha de matrizes de modelagem.
 void PushMatrix(glm::mat4 M);
 void PopMatrix(glm::mat4& M);
@@ -161,6 +162,8 @@ int wPressed = 0;
 int aPressed = 0;
 int sPressed = 0;
 int dPressed = 0;
+int isJumping = 0;
+float jTime = 0;
 
 // Enemy
 int enemiesCreated = 0;
@@ -169,6 +172,7 @@ void enemyMov();
 glm::vec4 moveTo;
 
 void HandleMovment();
+void HandleJump();
 void draw(ObjModel cube, int index);
 void drawHead(ObjModel cube,glm::mat4 model);
 void drawHelix(ObjModel cube,glm::mat4 model);
@@ -425,7 +429,6 @@ int main(int argc, char* argv[])
           HandleMovment();
           enemyMov();
           
-
           camera_position_c  = glm::vec4(cX,cY,cZ,1.0f); // Ponto "c", centro da câmera
           camera_view_vector = camera_lookat_l - camera_position_c; 
           camera_up_vector   = glm::vec4(0.0f,1.0f,0.0f,0.0f); // Vetor "up" fixado para apontar para o "céu" (eito Y global)
@@ -433,7 +436,7 @@ int main(int argc, char* argv[])
           glm::vec4 distance  = glm::vec4(cX,1.0,cZ,0.0f);
           camera_lookat_l += distance;
         } else {
-          camera_lookat_l  = glm::vec4(0,0,0,1.0f); // Ponto "l", para onde a câmera (look-at) estará sempre olhando
+          camera_lookat_l  = glm::vec4(cX,0,cZ,1.0f); // Ponto "l", para onde a câmera (look-at) estará sempre olhando
           camera_position_c  = glm::vec4(x,-y,z,1.0f); // Ponto "c", centro da câmera
           camera_view_vector = camera_lookat_l - camera_position_c; 
         }
@@ -1266,8 +1269,32 @@ void HandleMovment() {
     cX += crossed.x * cameraSpeed;
     cZ += crossed.z * cameraSpeed;
   }
+  if (isJumping) {
+    HandleJump();
+  }
   glm::vec4 distance = glm::vec4(cX,1.0f,cZ,0.0f); 
   camera_lookat_l += distance;
+}
+
+void HandleJump() {
+  // Increase cY based on time
+  //
+  jTime += deltaTime;
+  float c1 = 0;
+  float c2 = 7.3;
+  float c3 = 5.9;
+  float c4 = 10;
+  float t = jTime;
+  float prevY = cY;
+
+  if (jTime > 1) {
+    jTime = 0;
+    isJumping = 0;
+  } else {
+    cY = 3 +(pow((1-t),3)*c1 + (3 * t * pow((1-t),2))*c2 + ((3*pow(t,2) * (1-t))*c3));
+    glm::vec4 distance = glm::vec4(0.0f,cY-prevY,0.0f,0.0f); 
+   camera_lookat_l += distance;
+  }
 }
 
 void enemyMov() {
@@ -1307,6 +1334,7 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
     if (key == GLFW_KEY_D && action == GLFW_RELEASE) dPressed = 0;
 
     if (key == GLFW_KEY_C && action == GLFW_PRESS) freeCamera = !freeCamera;
+    if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) isJumping = 1;
 
 
     // O código abaixo implementa a seguinte lógica:
@@ -1459,7 +1487,7 @@ void TextRendering_ShowEulerAngles(GLFWwindow* window)
     snprintf(buffer, 80, "Look at = X(%.2f) Y(%.2f) Z(%.2f)\n", x, y, z);
     TextRendering_PrintString(window, buffer, -1.0f+1*pad/10, -1.0f+10*pad/10, 1.0f);
 
-    snprintf(buffer, 80, "deltaTime = %.2f",deltaTime);
+    snprintf(buffer, 80, "jTime = %.2f",jTime);
     TextRendering_PrintString(window, buffer, -1.0f+1*pad/10, -1.0f+18*pad/10, 1.0f);
 
     snprintf(buffer, 80, "Enemy 1 position   = X(%.2f) Y(%.2f) Z(%.2f)\n", ePos.x, ePos.y, ePos.z);

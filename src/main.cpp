@@ -156,6 +156,9 @@ float y = 1.0f;
 float z = 1.0f;
 float r = 1.0f;
 
+float delta = 3.141592 / 16; // 22.5 graus, em radianos.
+int up = 1;
+
 glm::vec4 camera_lookat_l = glm::vec4(1.0f,3.0f,1.0f,1.0f);
 // Mov
 int wPressed = 0;
@@ -166,8 +169,9 @@ int isJumping = 0;
 float jTime = 0;
 // Pontos curva bezier
 float c1 = 0;
-float c2 = 7.3;
-float c3 = 5.9;
+float c2 = 0.03;
+float c3 = 0.7;
+float c4 = 0;
 
 // Enemy
 int enemiesCreated = 0;
@@ -456,7 +460,7 @@ int main(int argc, char* argv[])
           camera_lookat_l += distance;
         } else {
 //          camera_lookat_l  = glm::vec4(cX,0,cZ,1.0f); // Ponto "l", para onde a câmera (look-at) estará sempre olhando
-        camera_lookat_l    = glm::vec4(0.0f,0.0f,0.0f,1.0f); // Ponto "l", para onde a câmera (look-at) estará sempre olhando
+          camera_lookat_l    = glm::vec4(0.0f,0.0f,0.0f,1.0f); // Ponto "l", para onde a câmera (look-at) estará sempre olhando
           camera_position_c  = glm::vec4(x,-y,z,1.0f); // Ponto "c", centro da câmera
           camera_view_vector = camera_lookat_l - camera_position_c; 
           camera_up_vector   = glm::vec4(0.0f,1.0f,0.0f,0.0f); // Vetor "up" fixado para apontar para o "céu" (eito Y global)
@@ -1334,7 +1338,7 @@ void HandleJump() {
     jTime = 0;
     isJumping = 0;
   } else {
-    cY = 3 +(pow((1-t),3)*c1 + (3 * t * pow((1-t),2))*c2 + ((3*pow(t,2) * (1-t))*c3));
+    cY = 3 + 10* (pow((1-t),3)*c1 + (3 * t * pow((1-t),2))*c2 + ((3*pow(t,2) * (1-t))*c3)+ pow(t,3)*c4);
     glm::vec4 distance = glm::vec4(0.0f,cY-prevY,0.0f,0.0f); 
    camera_lookat_l += distance;
   }
@@ -1346,7 +1350,7 @@ void enemyMov() {
     moveTo = playerPos - enemiesArray[i].position;
     moveTo = normalize(moveTo);
     moveTo = (glm::vec4(moveTo.x,0,moveTo.z,0.0f));
-    float enemyVel = cameraSpeed * 0.5;
+    float enemyVel = cameraSpeed * 0.2;
     enemiesArray[i].position += moveTo * enemyVel;
   }
 }
@@ -1388,11 +1392,33 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
     //   Se apertar tecla Z       então g_AngleZ += delta;
     //   Se apertar tecla shift+Z então g_AngleZ -= delta;
 
-    float delta = 3.141592 / 16; // 22.5 graus, em radianos.
 
     if (key == GLFW_KEY_X && action == GLFW_PRESS)
     {
         g_AngleX += (mod & GLFW_MOD_SHIFT) ? -delta : delta;
+    }
+
+    if (key == GLFW_KEY_1 && action == GLFW_PRESS)
+    {
+//        g_AngleX += (mod & GLFW_MOD_SHIFT) ? -delta : delta;
+//        if (g_AngleX > 0.59) g_AngleX -=2 *  delta;
+
+        if (g_AngleX > 0.59) up = !up;
+        if (g_AngleX < -0.59) up = !up;
+        if (up) g_AngleX -= delta;
+        else g_AngleX += delta;
+
+
+        // n pode ser menor que -59
+        // n pode ser maior que 59
+        
+    }
+    if (key == GLFW_KEY_3 && action == GLFW_PRESS) {
+        g_AngleY +=  -delta;
+    }
+
+    if (key == GLFW_KEY_2 && action == GLFW_PRESS) {
+        g_AngleY +=  delta;
     }
 
     if (key == GLFW_KEY_Y && action == GLFW_PRESS)
@@ -1533,7 +1559,7 @@ void TextRendering_ShowEulerAngles(GLFWwindow* window)
     snprintf(buffer, 80, "jTime = %.2f",jTime);
     TextRendering_PrintString(window, buffer, -1.0f+1*pad/10, -1.0f+18*pad/10, 1.0f);
 
-    snprintf(buffer, 80, "Enemy 1 position   = X(%.2f) Y(%.2f) Z(%.2f)\n", ePos.x, ePos.y, ePos.z);
+    snprintf(buffer, 80, "Delta = %.2f \n", g_AngleX);
     TextRendering_PrintString(window, buffer, -1.0f+pad/10, -1.0f+26*pad/10, 1.0f);
 
     snprintf(buffer, 80, "Enemy 1 look at   = X(%.2f) Y(%.2f) Z(%.2f)\n", moveTo.x, moveTo.y, moveTo.z);

@@ -1,0 +1,24 @@
+A ideia do trabalho era correr de inimigos enquanto tentava acerta-los com uma torre presa ao chao que tem sua rotacao controlada pelo usuario  
+(jogando)
+
+Para as malhas poligonais complexas eu inseri a dada pelo professor caso a torre nao fosse o bastante 
+3 texturas, chao, vaca e da torre
+
+Como eu falei, as torre pode ser rotacionada nos eixos X e Y pelo usario atraves do teclado
+
+O "jogo" é com a camera livre, movimentacao controlada pelo usuario. Ao pausar o jogo com a tecla C, as animações param a a camera fica look at presa no ponto 0.0, podendo ser movimentada pelo mouse
+
+O inimigo é  feito somente por cubos 
+`d 
+
+Sem testes de interseccao
+
+Iluminacao de lambert e phong
+f2
+
+
+Pulo, reseta a torre
+`b
+
+Deltatime
+                               

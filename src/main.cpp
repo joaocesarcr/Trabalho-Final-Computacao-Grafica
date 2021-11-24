@@ -164,6 +164,10 @@ int sPressed = 0;
 int dPressed = 0;
 int isJumping = 0;
 float jTime = 0;
+// Pontos curva bezier
+float c1 = 0;
+float c2 = 7.3;
+float c3 = 5.9;
 
 // Enemy
 int enemiesCreated = 0;
@@ -178,10 +182,10 @@ void drawHead(ObjModel cube,glm::mat4 model);
 void drawHelix(ObjModel cube,glm::mat4 model);
 
 void createEnemies() {
-  enemiesArray[0].position = glm::vec4(100.0f,10.0f,100.0f,1.0f); 
-  enemiesArray[1].position = glm::vec4(-100.0f,10.0f,100.0f,1.0f); 
-  enemiesArray[2].position = glm::vec4(-100.0f,10.0f,-100.0f,1.0f); 
-  enemiesArray[3].position = glm::vec4(100.0f,10.0f,-100.0f,1.0f); 
+  enemiesArray[0].position = glm::vec4(100.0f,20.0f,100.0f,1.0f); 
+  enemiesArray[1].position = glm::vec4(-100.0f,20.0f,100.0f,1.0f); 
+  enemiesArray[2].position = glm::vec4(-100.0f,20.0f,-100.0f,1.0f); 
+  enemiesArray[3].position = glm::vec4(100.0f,20.0f,-100.0f,1.0f); 
 }
 
 // Definimos uma estrutura que armazenará dados necessários para renderizar
@@ -228,7 +232,7 @@ bool g_MiddleMouseButtonPressed = false; // Análogo para botão do meio do mous
 // renderização.
 float g_CameraTheta = 0.0f; // Ângulo no plano ZX em relação ao eixo Z
 float g_CameraPhi = 90.0f;   // Ângulo em relação ao eixo Y
-float g_CameraDistance = 10.5f; // Distância da câmera para a origem
+float g_CameraDistance = 60.5f; // Distância da câmera para a origem
 
 // Variáveis que controlam rotação do antebraço
 float g_ForearmAngleZ = 0.0f;
@@ -337,11 +341,12 @@ int main(int argc, char* argv[])
 
     // Carregamos duas imagens para serem utilizadas como textura
     //LoadTextureImage("../../data/tc-earth_daymap_surface.jpg");      // TextureImage0
-    LoadTextureImage("../../data/mapa.jpg", 0);      // TextureImage0
-    LoadTextureImage("../../data/grass.jpg", 1);      // TextureImage0
-    LoadTextureImage("../../data/roxo.png", 0);      // TextureImage0
+    LoadTextureImage("../../data/cow.jpg", 0);      // TextureImage0
+    LoadTextureImage("../../data/metal.jpg", 1);      // TextureImage0
+    LoadTextureImage("../../data/areia.jpg", 0);      // TextureImage0
 
     // Construímos a representação de objetos geométricos através de malhas de triângulos
+    /*
     ObjModel spheremodel("../../data/sphere.obj");
     ComputeNormals(&spheremodel);
     BuildTrianglesAndAddToVirtualScene(&spheremodel);
@@ -350,17 +355,31 @@ int main(int argc, char* argv[])
     ComputeNormals(&bunnymodel);
     BuildTrianglesAndAddToVirtualScene(&bunnymodel);
 
-    ObjModel planemodel("../../data/plane.obj");
-    ComputeNormals(&planemodel);
-    BuildTrianglesAndAddToVirtualScene(&planemodel);
-
     ObjModel gun1("../../data/gun1.obj");
     ComputeNormals(&gun1);
     BuildTrianglesAndAddToVirtualScene(&gun1);
 
+    */
+
+    ObjModel planemodel("../../data/plane.obj");
+    ComputeNormals(&planemodel);
+    BuildTrianglesAndAddToVirtualScene(&planemodel);
+
     ObjModel cube("../../data/cube.obj");
     ComputeNormals(&cube);
     BuildTrianglesAndAddToVirtualScene(&cube);
+
+    ObjModel cow("../../data/cow.obj");
+    ComputeNormals(&cow);
+    BuildTrianglesAndAddToVirtualScene(&cow);
+    
+    ObjModel base("../../data/base.obj");
+    ComputeNormals(&base);
+    BuildTrianglesAndAddToVirtualScene(&base);
+
+    ObjModel turret("../../data/turret.obj");
+    ComputeNormals(&turret);
+    BuildTrianglesAndAddToVirtualScene(&turret);
 
     if ( argc > 1 )
     {
@@ -396,7 +415,7 @@ int main(int argc, char* argv[])
         // Conversaremos sobre sistemas de cores nas aulas de Modelos de Iluminação.
         //
         //           R     G     B     A
-        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+        glClearColor(0.3f, 0.6f, 1.0f, 1.0f);
 
         // "Pintamos" todos os pixels do framebuffer com a cor definida acima,
         // e também resetamos todos os pixels do Z-buffer (depth buffer).
@@ -425,7 +444,7 @@ int main(int argc, char* argv[])
 
         if (freeCamera) {
           cameraSpeed = 30.0 * deltaTime;
-          camera_lookat_l  = glm::vec4(x,-y,z,1.0f); // Ponto "l", para onde a câmera (look-at) estará sempre olhando
+          camera_lookat_l  = glm::vec4(x,-y,z,1.0f); // Ponto "l", para onde a câmera estará olhando
           HandleMovment();
           enemyMov();
           
@@ -436,9 +455,11 @@ int main(int argc, char* argv[])
           glm::vec4 distance  = glm::vec4(cX,1.0,cZ,0.0f);
           camera_lookat_l += distance;
         } else {
-          camera_lookat_l  = glm::vec4(cX,0,cZ,1.0f); // Ponto "l", para onde a câmera (look-at) estará sempre olhando
+//          camera_lookat_l  = glm::vec4(cX,0,cZ,1.0f); // Ponto "l", para onde a câmera (look-at) estará sempre olhando
+        camera_lookat_l    = glm::vec4(0.0f,0.0f,0.0f,1.0f); // Ponto "l", para onde a câmera (look-at) estará sempre olhando
           camera_position_c  = glm::vec4(x,-y,z,1.0f); // Ponto "c", centro da câmera
           camera_view_vector = camera_lookat_l - camera_position_c; 
+          camera_up_vector   = glm::vec4(0.0f,1.0f,0.0f,0.0f); // Vetor "up" fixado para apontar para o "céu" (eito Y global)
         }
         // Computamos a matriz "View" utilizando os parâmetros da câmera para
         // definir o sistema de coordenadas da câmera.  Veja slides 2-14, 184-190 e 236-242 do documento Aula_08_Sistemas_de_Coordenadas.pdf.
@@ -486,6 +507,11 @@ int main(int argc, char* argv[])
         #define PLANE  2
         #define GUN1   3
         #define CUBE   4
+        #define CUBE_marrom   5
+        #define CUBE_pine   6
+        #define COW 7
+        #define BASE 8
+        #define TURRET 9
 
         // Desenhamos o modelo da esfera
         model = Matrix_Translate(-10.0f,0.0f,0.0f)
@@ -511,12 +537,33 @@ int main(int argc, char* argv[])
         DrawVirtualObject("plane");
 
         // Desenhamos arma 1
-        model = Matrix_Translate(cX-1.0,cY - 0.5,cZ + 2.0)
-                * Matrix_Scale(0.3f,0.3f,0.3f)
-                * Matrix_Rotate_Y(3);
+        model = Matrix_Translate(10.0f,0.5f,10.0f)
+                * Matrix_Scale(0.3f,0.3f,0.3f);
         glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(object_id_uniform, GUN1);
         DrawVirtualObject("gun1");
+
+        model = Matrix_Translate(-10.0f,2.0f,-10.0f)
+                * Matrix_Scale(5.0f,5.0f,5.0f);
+        glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(object_id_uniform, COW);
+        DrawVirtualObject("cow");
+
+        // BASE
+        model = Matrix_Translate(5.0f,0.0f,5.0f)
+								 * Matrix_Rotate_Y(g_AngleY);
+        glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(object_id_uniform, BASE);
+        DrawVirtualObject("base");
+
+        // Turret
+       model = Matrix_Translate(5.0f,0.0f,5.0f)
+								 * Matrix_Rotate_Y(g_AngleY)
+								 * Matrix_Rotate_X(g_AngleX);
+        glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(object_id_uniform, TURRET);
+        DrawVirtualObject("turret");
+
 
         for(int i=0;i<4;i++) draw(cube,i);
 
@@ -1279,11 +1326,7 @@ void HandleMovment() {
 void HandleJump() {
   // Increase cY based on time
   //
-  jTime += deltaTime;
-  float c1 = 0;
-  float c2 = 7.3;
-  float c3 = 5.9;
-  float c4 = 10;
+  jTime += 1.0 * deltaTime;
   float t = jTime;
   float prevY = cY;
 
@@ -1495,8 +1538,6 @@ void TextRendering_ShowEulerAngles(GLFWwindow* window)
 
     snprintf(buffer, 80, "Enemy 1 look at   = X(%.2f) Y(%.2f) Z(%.2f)\n", moveTo.x, moveTo.y, moveTo.z);
     TextRendering_PrintString(window, buffer, -1.0f+pad/10, -1.0f+34*pad/10, 1.0f);
-
-
 }
 
 // Escrevemos na tela qual matriz de projeção está sendo utilizada.
@@ -1797,7 +1838,7 @@ void draw(ObjModel cube, int index) {
 					* Matrix_Scale(3.0f,3.0f,3.0f);
 
 	glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-	glUniform1i(object_id_uniform, CUBE);
+	glUniform1i(object_id_uniform, CUBE_pine);
 	DrawVirtualObject("cube");
 	drawHead(cube,model);
 
@@ -1805,12 +1846,13 @@ void draw(ObjModel cube, int index) {
 }
 
 void drawHead(ObjModel cube,glm::mat4 model) {
-	model *=  Matrix_Translate(0.0f,1.0f,0.0f)
-					* Matrix_Scale(0.3f,1.5f,0.3f)
-					* Matrix_Rotate_Y(g_AngleY + (float)glfwGetTime() * 10.f);
+    model *=  Matrix_Translate(0.0f,2.6f,0.0f)
+					* Matrix_Scale(0.3f,3.5f,0.3f);
+  if (freeCamera) 
+    model *= Matrix_Rotate_Y(g_AngleY + (float)glfwGetTime() * 10.f);
 
 		glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-		glUniform1i(object_id_uniform, CUBE);
+		glUniform1i(object_id_uniform, CUBE_marrom);
 		DrawVirtualObject("cube");
 
 		for(int i= 0; i < 3;i++) {

@@ -2,12 +2,12 @@
 | Critérios Técnicos                                  | Pontuação |
 |-----------------------------------------------------+-----------|
 | Malhas poligonais complexas                         |     X     | 
-| Transformações geométricas controladas pelo usuário |     T     | fazer machinegun123
-| Câmera livre e câmera look-at                       |     X     | arrumar para o ponto da camera ser o jogador
+| Transformações geométricas controladas pelo usuário |     X     | fazer machinegun123
+| Câmera livre e câmera look-at                       |     T     | arrumar para o ponto da camera ser o jogador
 | Instâncias de objetos                               |     X     | inimigo é feito somento por cubos
-| Três tipos de testes de intersecção                 |           | tiro
+| Três tipos de testes de intersecção                 |     N     | 
 | Modelos de Iluminação Difusa e Blinn-Phong          |     X     | 
-| Modelos de Interpolação de Phong e Gouraud          |           | que isso
+| Modelos de Interpolação de Phong e Gouraud          |     N     | 
 | Mapeamento de texturas                              |     X     | 
 | Movimentação com curva Bézier cúbica                |     X     | PULO
 | Animações baseadas no tempo ($\Delta t$)            |     X     | velocidade do jogador + pulo

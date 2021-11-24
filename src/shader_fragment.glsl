@@ -24,6 +24,11 @@ uniform mat4 projection;
 #define PLANE  2
 #define GUN1   3
 #define CUBE   4
+#define CUBE_marrom   5
+#define CUBE_pine   6
+#define COW   7
+#define TURRET   8
+#define BASE   9
 uniform int object_id;
 
 // Parâmetros da axis-aligned bounding box (AABB) do modelo
@@ -34,6 +39,8 @@ uniform vec4 bbox_max;
 uniform sampler2D TextureImage0;
 uniform sampler2D TextureImage1;
 uniform sampler2D TextureImage2;
+uniform sampler2D TextureImage3;
+//uniform sampler2D TextureImage4;
 
 // O valor de saída ("out") de um Fragment Shader é a cor final do fragmento.
 out vec3 color;
@@ -71,19 +78,6 @@ void main()
     float V = 0.0;
 
     if ( object_id == SPHERE ) {
-        // PREENCHA AQUI as coordenadas de textura da esfera, computadas com
-        // projeção esférica EM COORDENADAS DO MODELO. Utilize como referência
-        // o slides 134-150 do documento Aula_20_Mapeamento_de_Texturas.pdf.
-        // A esfera que define a projeção deve estar centrada na posição
-        // "bbox_center" definida abaixo.
-
-        // Você deve utilizar:
-        //   função 'length( )' : comprimento Euclidiano de um vetor
-        //   função 'atan( , )' : arcotangente. Veja https://en.wikipedia.org/wiki/Atan2.
-        //   função 'asin( )'   : seno inverso.
-        //   constante M_PI
-        //   variável position_model
-
         vec4 bbox_center = (bbox_min + bbox_max) / 2.0;
 
 /*
@@ -131,7 +125,7 @@ void main()
         Ka = vec3(0.0,0.0,0.0);
         q = 0.3;
 
-        Kd0 = texture(TextureImage0, vec2(U,V)).rgb;
+        Kd0 = texture(TextureImage1, vec2(U,V)).rgb;
         Kd = Kd0;
     }
     else if ( object_id == GUN1 )
@@ -150,8 +144,6 @@ void main()
 
         vec4 bbox_center = (bbox_min + bbox_max) / 2.0;
 
-/*
-        */
         vec4 vP = position_model - bbox_center;
         float theta = atan(vP.x, vP.z);
         float phi = asin(vP.y);
@@ -202,6 +194,85 @@ void main()
 
         Kd0 = texture(TextureImage1, vec2(U,V)).rgb;
         Kd = Kd0;
+    }
+
+    else if ( object_id == CUBE_marrom ) {
+
+				// U = (position_model.x - floor(position_model.x));
+			  // V = (position_model.y - floor(position_model.y));
+        // Coordenadas de textura do plano, obtidas do arquivo OBJ.
+        U = texcoords.x;
+        V = texcoords.y;
+
+        U = U - floor(U);
+        V = V - floor(V);
+
+        Ks = vec3(0.2,0.2,0.2);
+        Ka = vec3(0.2,0.2,0.2);
+        q = 40.0;
+
+        Kd0 = texture(TextureImage2, vec2(U,V)).rgb;
+        Kd = Kd0;
+    }
+    else if ( object_id == COW ) {
+        vec4 bbox_center = (bbox_min + bbox_max) / 2.0;
+
+        vec4 vP = position_model - bbox_center;
+        float theta = atan(vP.x, vP.z);
+        float phi = asin(vP.y);
+
+        U = (theta+ M_PI) / (2*M_PI);
+        V = (phi + M_PI_2) / M_PI;
+
+        Kd0 = texture(TextureImage0, vec2(U,V)).rgb;
+        Ks = vec3(0.3,0.3,0.3);
+        Kd = Kd0;
+        Ka = vec3(0.0,0.0,0.0);
+        q = 20.0;
+    }
+
+    else if ( object_id == CUBE_pine ) {
+
+        Ks = vec3(0.7,0.4,0.0);
+        Ka = vec3(0.0,0.0,0.04);
+        q = 1.0;
+
+        Kd0 = texture(TextureImage1, vec2(U,V)).rgb;
+        Kd = Kd0;
+        Kd = vec3(0.0,0.0,0.0);
+
+    }
+    else if ( object_id == BASE ) {
+        vec4 bbox_center = (bbox_min + bbox_max) / 2.0;
+
+        vec4 vP = position_model - bbox_center;
+        float theta = atan(vP.x, vP.z);
+        float phi = asin(vP.y);
+
+        U = (theta+ M_PI) / (2*M_PI);
+        V = (phi + M_PI_2) / M_PI;
+
+        Kd0 = texture(TextureImage1, vec2(U,V)).rgb;
+        Ks = vec3(0.3,0.3,0.3);
+        Kd = Kd0;
+        Ka = vec3(0.0,0.0,0.0);
+        q = 20.0;
+    }
+    else if ( object_id == TURRET ) {
+        vec4 bbox_center = (bbox_min + bbox_max) / 2.0;
+
+        vec4 vP = position_model - bbox_center;
+        float theta = atan(vP.x, vP.z);
+        float phi = asin(vP.y);
+
+        U = (theta+ M_PI) / (2*M_PI);
+        V = (phi + M_PI_2) / M_PI;
+
+        Kd0 = texture(TextureImage1, vec2(U,V)).rgb;
+        Ks = vec3(0.3,0.3,0.3);
+        Kd = Kd0;
+        Ka = vec3(0.0,0.0,0.0);
+        q = 20.0;
     }
 
     else // Objeto desconhecido = preto
